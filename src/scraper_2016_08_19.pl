@@ -79,11 +79,14 @@ Inspired by Prolog Programming in Depth, page 79 on list reversal.
 % defined in other states.
 %
 
-collect_tags(List_1, List_2, Tags) :-  collect_tags_aux(List_1,List_2,[],Tags).
+% AO - corrected to standard indenting in several places
+collect_tags(List_1, List_2, Tags) :-
+	collect_tags_aux(List_1,List_2,[],Tags).
 
 % Induction case:
 collect_tags_aux([H1|Rest1],[H2|Rest2], Stack, Tags) :-  %Stack instantiated to [] (empty list) on first call
-	atomic_list_concat([H1,H2], " -- ",New),	 % Takes element from each lists and makes new atom separated by "--".
+	% AO - more standard (and fixed comment)
+	atomic_list_concat([H1,' -- ', H2],New),	 % Takes element from each lists and makes new atom separated by " -- ".
 	collect_tags_aux(Rest1,Rest2, [New|Stack], Tags). %Stack instantiated to empty list, with [New] as head.
 							  %Later calls will push result to head of list.
 							  %Tags remains uninstantiated until last call.
@@ -94,7 +97,8 @@ collect_tags_aux([H1|Rest1],[H2|Rest2], Stack, Tags) :-  %Stack instantiated to 
 collect_tags_aux([], [], Tags, Tags) :-
 	reverse(Tags, Original),                   % Input lists will be reversed again to original order
         assert(tags(Original)),                    % Data stored in DB in original order
-        write("Data stored in DB. Query tags(Var) to retrive.\n"),
+	% AO - storing constant strings as atoms is more efficient, as atoms are interned
+        write('Data stored in DB. Query tags(Var) to retrive.\n'),
 	write_results(Original), nl.		   % All elements are printed to screen and procedure terminates.
 
 
@@ -110,13 +114,13 @@ collect_tags_aux([], [], Tags, Tags) :-
 % absolute lists throughout recursion.
 % Case 4: Base Case -- URL List is empty.  Store results in DB.
 
-test_url(URL_List, Absolute, Relative) :- test_url_aux(URL_List, [], [], Absolute, Relative), !.
+test_url(URL_List, Absolute, Relative) :-
+	test_url_aux(URL_List, [], [], Absolute, Relative), !.
 
 % Case 1
 test_url_aux([H|Rest], Abs_stack, Rel_stack, Absolute, Relative) :-
-	uri_components(H, Components),
-	Components =.. Component_list,
-	Component_list = [_Functor, Scheme, _Authority, Path, _Search, _Fragment],
+	% AO - destructure when you can and it increases clarity
+	uri_components(H, uri_components(Scheme, _Authority, Path, _Search, _Fragment)),
 	nonvar(Scheme),
 	nonvar(Path),
 	http_or_https(Scheme),
@@ -124,17 +128,13 @@ test_url_aux([H|Rest], Abs_stack, Rel_stack, Absolute, Relative) :-
 
 % Case 2
 test_url_aux([H|Rest], Abs_stack, Rel_stack, Absolute, Relative) :-
-	uri_components(H, Components),
-	Components =.. Component_list,
-	Component_list = [_Functor, Scheme, _Authority, _Path, _Search, _Fragment],
+	uri_components(H, uri_components(Scheme, _Authority, _Path, _Search, _Fragment)),
 	var(Scheme),
 	test_url_aux(Rest, Abs_stack, [H|Rel_stack], Absolute, Relative).
 
 % Case 3
 test_url_aux([H|Rest], Abs_stack, Rel_stack, Absolute, Relative) :-
-	uri_components(H, Components),
-	Components =.. Component_list,
-	Component_list = [_Functor, Scheme, _Authority, _Path, _Search, _Fragment],
+	uri_components(H, uri_components(Scheme, _Authority, _Path, _Search, _Fragment)),
 	nonvar(Scheme),
 	\+ http_or_https(Scheme),
         test_url_aux(Rest, Abs_stack, Rel_stack, Absolute, Relative).
@@ -145,16 +145,14 @@ test_url_aux([],Absolute, Relative, Absolute, Relative) :-
 	reverse(Relative, Rel_original),
 	assert(absolute(Abs_original)),
 	assert(relative(Rel_original)),
-	write("Query absolute(X) or relative(Y) to retrive result list.\n").
+	write('Query absolute(X) or relative(Y) to retrive result list.\n').
 
 % Keep getting singlton warning or variable marked singleton appears
 % more than once. May need to make custom predicate for URL Scheme to
 % appear in.
 
-http_or_https(X) :-
-	X = http
-	; X = https,
-	true.
+http_or_https(http).
+http_or_https(https).
 
 %% To test, run at toplevel:
 %% get_local_file("test_input/cliki_index.htm").
@@ -168,7 +166,8 @@ http_or_https(X) :-
 % URL. I have not concluded whether using the regular expression
 % library or using a custom DCG is best. I suspect the latter.
 
-make_url(Domain, List, Links) :- make_url_aux(Domain, List, [], Links).
+make_url(Domain, List, Links) :-
+	make_url_aux(Domain, List, [], Links).
 
 % Induction case: H is instantiated to first element of List, Stack is
 % instantiated to empty list on first call. On subsequent calls, it will
@@ -201,11 +200,11 @@ write_results([]) :-
 % write to file stream. Saves only the most recently asserted results.
 write_results_to_file(Stream, [H|Rest]) :-
 	write(Stream, H),
-	write(Stream, "\n"),
+	write(Stream, '\n'),
         write_results_to_file(Stream, Rest).
 
 write_results_to_file(Stream, []) :-
-	write(Stream, "\n"), !.
+	write(Stream, '\n'), !.
 
 /*   Query tag -- interface to Xpath
 
@@ -221,29 +220,33 @@ query_tag(DOM, Tag, Results) :- doc(DOM),
 	findall(Query, xpath(DOM, Tag, Query), Results).
 
 
-query_tag(help) :- write("The predicate query_tag/3 returns portions of a previously parsed HTML/XML\n"),
-	write("document specified by the first argument.  The proper format for a query tag is:\n"),
-	write("     //tag -- returns all items matching that tag sequentially.\n"),
-	write("     //tag(Int) -- returns specific tag or tags matching query.\n"),
-	write("     //tag(@attribute) -- returns attributes of all tags.\n"),
-	write("Examples: \n"),
-	write("?- query_tag(DOM, //a(@href), Results). -> sequentially returns links.\n"),
-	write("?- query_tag(DOM, //li(normalize_space), Results). -> text collected into list.\n"),
-	write("?- query_tag(DOM, //li(4, text), Results). -> returns the text in the fourth element in a "),
-	write("list.\n").
+% AO - cleaned up by using handy property of strings - they handle
+% newlines
+query_tag(help) :- write("The predicate query_tag/3 returns portions of a previously parsed HTML/XML
+document specified by the first argument.  The proper format for a query tag is
+//tag -- returns all items matching that tag sequentially.
+//tag(Int) -- returns specific tag or tags matching query.
+//tag(@attribute) -- returns attributes of all tags.
+Examples:
+?- query_tag(DOM, //a(@href), Results). -> sequentially returns links.
+?- query_tag(DOM, //li(normalize_space), Results). -> text collected into list.
+?- query_tag(DOM, //li(4, text), Results). -> returns the text in the fourth element in a
+list.\n").
 
 % File handling
 get_local_file(File) :-
 	open(File, read, Stream),
 	load_html(Stream, DOM, [syntax_errors(quiet),
 			        max_errors(-1)]),
+	% AO - use asserta or assertz, assert is vague and deprecated
 	assert(doc(DOM)),   %might not need this.
 	print(File), print(' stored in database. Query doc(Var) to retrieve.'),
 	close(Stream).
 
+% AO -  make sure you get the http open before you load
 get_url(URL, DOM) :-
-	http_open(URL, In, []),
-        call_cleanup(
+	setup_call_cleanup(
+	    http_open(URL, In, []),
             load_html(In, DOM, [syntax_errors(quiet),
 			        max_errors(-1)]),
             close(In)).
@@ -256,15 +259,15 @@ save_to_file(File_name, Term) :- %Term should be an instantiated list
 
 % main procedures on start of program
 start :-
-	write("Use this program to extract data and metadata from webpages. For locally saved pages, use\n"),
-	write("    get_local_file('/path/to/file').\n"),
-	write("to load document. For remote page, use\n"),
-	write("    get_url('http://path.to.doc.bla/more/paths/if/needed', DOM).\n"),
-	write("File names and paths are single quoted strings. Arguments to predicates are\n"),
-	write("separated by comma (,) and are terminated by period (.).\n"),
-	write("To extract data, call 'query_tag(help).' for more info\n"),
-	write("To save extracted data, do the following: \n"),
-	write("?- data_1(List1), save_to_file('path/to/file', List1) \n").
+	write("Use this program to extract data and metadata from webpages. For locally saved pages, use
+get_local_file('/path/to/file').
+to load document. For remote page, use
+get_url('http://path.to.doc.bla/more/paths/if/needed', DOM).
+File names and paths are single quoted strings. Arguments to predicates are
+separated by comma (,) and are terminated by period (.).
+To extract data, call 'query_tag(help).' for more info
+To save extracted data, do the following:
+?- data_1(List1), save_to_file('path/to/file', List1) \n").
 
 
 
