@@ -17,14 +17,13 @@
 %   To run program, at toplevel	enter '['path/to/scraper2.pl'].'
 %   and	enter "start." at prompt.
 
+:- use_module(library(debug)).
+:- use_module(library(error)).
 :- use_module(library(http/http_open)).
-:- use_module(library(sort)).
 :- use_module(library(xpath)).
 :- use_module(library(uri)).
-:- use_module(library(csv)).
 
-
-% Unused for now, but useful for testing with query_tags/3 to extract
+% Unused for now, but useful for testing with query_tag/3 to extract
 % different types of data manually at toplevel.
 :- dynamic
 	doc/1,
@@ -47,9 +46,41 @@
 % Screenscraper Website','Barebones PHP webscraper Docs']).
 
 % links(['https://www.google.com',
-% 'https://www.amazon.com','https://www.swi-prolog.org',
+% 'https://www.amazon.com',
+% 'https://www.swi-prolog.org',
 % 'https://www.clozure.com','https://wwww.cons.org',
-% 'http://www.schrenk.com/nostarch/webbots/DSP_targets.php','https://barebonescms.com/documentation/ultimate_web_scraper_toolkit/']).
+% 'http://www.schrenk.com/nostarch/webbots/DSP_targets.php',
+% 'https://barebonescms.com/documentation/ultimate_web_scraper_toolkit/']).
+
+
+/*   Query tag -- interface to Xpath
+
+query_tag(help) :-  document arguments query tag takes.
+
+query_tag(doc(DOM), <tag>, Results) :- find all tags in document that
+unify with <tag>.
+
+*/
+
+
+query_tag(DOM, Tag, Results) :- doc(DOM),
+	findall(Query, xpath(DOM, Tag, Query), Results).
+
+
+% AO - cleaned up by using handy property of strings - they handle
+% newlines
+
+query_tag(help) :- write("The predicate query_tag/3 returns portions of a previously parsed HTML/XML
+document specified by the first argument.  The proper format for a query tag is
+//tag -- returns all items matching that tag sequentially.
+//tag(Int) -- returns specific tag or tags matching query.
+//tag(@attribute) -- returns attributes of all tags.
+Examples:
+?- query_tag(DOM, //a(@href), Results). -> sequentially returns links.
+?- query_tag(DOM, //li(normalize_space), Results). -> text collected into list.
+?- query_tag(DOM, //li(4, text), Results). -> returns the text in the fourth element in a
+list.\n").
+
 
 
 /* collect_tags([H1|Rest1],[H2|Rest2], Tags) :-  %assumes lists are of equal length. Not defined in other states.
@@ -102,6 +133,14 @@ collect_tags_aux([], [], Tags, Tags) :-
 	% AO - storing constant strings as atoms is more efficient, as atoms are interned
         write('Data stored in DB. Query tags(Var) to retrive.\n'),
 	write_results(Original), nl.		   % All elements are printed to screen and procedure terminates.
+
+% collects a subset or the complete table if all particular cells are
+% specified.
+
+collect_cells(DOM, Xpath, Start,End,N, Results) :-
+	between(Start, End, N),
+	query_tag(DOM, Xpath, Results).
+
 
 
 % Filter predicates to separate relative (inbound) links from
@@ -202,6 +241,8 @@ write_results([]) :-
 	nl,
 	!.
 
+
+
 % write to file stream. Saves only the most recently asserted results.
 
 write_results_to_file(_Stream, H) :-
@@ -216,32 +257,45 @@ write_results_to_file(Stream, [H|Rest]) :-
 write_results_to_file(Stream, []) :-
 	write(Stream, '\n'), !.
 
-/*   Query tag -- interface to Xpath
 
-query_tag(help) :-  document arguments query tag takes.
+/*
+% Table data extraction predicates; They do not work yet.
+dump_table(File, Xpath, First, Last, N) :-
+    doc(DOM),
+    open(File, write, Handle),
+    between(First,Last,N),
+    xpath(DOM, Xpath, Data), % N will be user supplied in Xpath uninstantiated
+	write_table(Handle, N, Last, Data),
+	close(Data).
 
-query_tag(doc(DOM), <tag>, Results) :- find all tags in document that
-unify with <tag>.
+%Adapted from dmiles prolog irc.
+
+write_table(Stream, Cells, Data) :-
+    must_be(integer,Cells),
+    must_be(list,Data),
+    write_table0(Stream, Cells, Data).
+
+write_table0(Stream, Cells, [H|Rest]) :-
+    write(Stream, H),
+    Remain is Cells - 1,
+    write_table(Stream, Cells, Remain, Rest).
+
+write_table(_Stream, _,N,[]):- N==0 ->   ! ; throw('table under-run').
+
+write_table(Stream, Cells, Remain, [H|Rest]) :-
+   Remain < 1
+   ->
+   (nl,
+    write_table0(Stream, Cells, [H|Rest]))
+   ;
+   (write(', '),
+    write(H),
+    RemainM1 is Remain - 1,
+	write_table(Stream, Cells, RemainM1, Rest)).
 
 */
 
 
-query_tag(DOM, Tag, Results) :- doc(DOM),
-	findall(Query, xpath(DOM, Tag, Query), Results).
-
-
-% AO - cleaned up by using handy property of strings - they handle
-% newlines
-query_tag(help) :- write("The predicate query_tag/3 returns portions of a previously parsed HTML/XML
-document specified by the first argument.  The proper format for a query tag is
-//tag -- returns all items matching that tag sequentially.
-//tag(Int) -- returns specific tag or tags matching query.
-//tag(@attribute) -- returns attributes of all tags.
-Examples:
-?- query_tag(DOM, //a(@href), Results). -> sequentially returns links.
-?- query_tag(DOM, //li(normalize_space), Results). -> text collected into list.
-?- query_tag(DOM, //li(4, text), Results). -> returns the text in the fourth element in a
-list.\n").
 
 % File handling
 get_local_file(File) :-
@@ -261,9 +315,9 @@ get_url(URL, DOM) :-
 			        max_errors(-1)]),
             close(In)).
 
-% Correct now.  See notes below.
+% Save_to_file is correct now.  See notes below.
 save_to_file(File_name, Term) :- %Term should be an instantiated list
-	open(File_name, write, Data),
+	open(File_name, write, Data, [close_on_abort(true), create([all])]),
 	write_results_to_file(Data, Term),
 	close(Data).
 
