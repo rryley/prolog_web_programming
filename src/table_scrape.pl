@@ -18,7 +18,7 @@
 :- include('scraper.pl').
 
 % remove after testing.
-get_local_file('test_input/icas.html').
+% get_local_file('test_input/icas.html').
 
 
 % Read table into memory starting with last row; the tr(index(last))
@@ -31,17 +31,73 @@ get_local_file('test_input/icas.html').
 %      findall(Row, xpath(TR, tr(N0)/td(text), Row), Row),
 %      Row = [Rank,Symbol,Name,BTC_Val,USD_Val,Vol_24_hr | Rest],
 %      assertz(row(Rank,Symbol,Name,BTC_Val,USD_Val,Vol_24_hr)),
-%      N1 = N0 + 1,
+%      N1 is N0 + 1,
 %      collect_rows(TR, tr(N1)/td(text), Next_row).
 %
 % Need clause for termination.
 
-%Not complete
-collect_rows(DOM, Xpath, N, Col_Start, Col_End, Results) :-
-    N0 = 1,
-    Xpath =.. [A,B,C],
-    compound_name_arguments(E, //, [C]).
+% Predicate collect_rows/2 accepts 2 arguments - a document previously
+% loaded into memory, and an Xpath expression that leads to a table
+% within the document.
+%
 
+collect_rows(DOM, Xpath) :- collect_rows_aux(DOM,Xpath, 1).
+
+% Base case initial call to procedure: Row_Number is unified/assigned
+% to 1 on first call. The output of the call to findall/3 is a list
+% containing the cells tagged as /td in the document. Row is unified
+% with an anonymous list that corresponds to the headings in the table.
+% Those headings can then be asserted in a structure, giving O(1)
+% access.
+%
+% Induction: As long as the length of Row is > 0, the Row_Number
+% is incremented by 1, unified/assigned to Next, and
+% the procedure is called again with Next as the 3rd argument, which
+% leads to the next row of the table.
+%
+% A cut needs to be placed before the recursive call to eliminate an
+% unnecessary choice point that will freeze the toplevel.
+
+collect_rows_aux(DOM, Xpath, Row_Number) :-
+   xpath(DOM, Xpath, TR),
+      findall(Row, xpath(TR, tr(Row_Number)/td(text), Row), Row),
+      length(Row, Row_Length),
+      Row_Length > 0,
+      Row = [Rank,Symbol,Name,BTC_Val,USD_Val,Vol_24_hr | _Rest],
+      assertz(row(Rank,Symbol,Name,BTC_Val,USD_Val,Vol_24_hr)),
+      Next is Row_Number + 1,
+      !,
+      collect_rows_aux(DOM, Xpath, Next).
+
+% Termination: A query to a nonexistent row in the document results in
+% an empty list.  Empty lists have a length of 0, so the total number of
+% records asserted is Row_Number - 1. There are no further records to
+% process, so feedback is provided to the user.
+
+collect_rows_aux(DOM,Xpath, Row_Number) :-
+   xpath(DOM, Xpath, TR),
+      findall(Row, xpath(TR, tr(Row_Number)/td(text), Row), Row),
+      length(Row,Row_Length),
+      Row_Length == 0,
+      Records is Row_Number - 1,
+      nl,
+      write("  There were "),
+      write(Records), write(" records entered into database."),
+      nl,
+      write("Query row(Rank,Symbol,Name,BTC_Val,USD_Val,Vol_24_hr) to retrive.  "),
+      nl.
+
+collect_rows(help) :-
+    write(
+        "Enter the document, and the Xpath expression for the table, just before the
+    row you want. Example:
+        \"collect_rows(Doc, //(div)/table/) or
+          collect_rows(Doc, //div/table/tbody) \"
+    starts at the first row and extracts all rows after it. You must know the precise
+    Xpath expression for the part just before the table row.  The Xpath should not
+    contain any reference to tr or td.").
+
+%Not complete
 /*
 %Have user enter correct Xpath before table row
 % review compound_name_arguments, compound_name_arity.
