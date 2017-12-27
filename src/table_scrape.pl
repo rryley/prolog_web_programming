@@ -15,11 +15,8 @@
 %  incremented by 1 and the next row is returned.
 
 :- discontiguous get_local_file/1.
+:- use_module(library(csv)).
 :- include('scraper.pl').
-
-% remove after testing.
-% get_local_file('test_input/icas.html').
-
 
 % Read table into memory starting with last row; the tr(index(last))
 % arguments will jump to the last element without needing to know a
@@ -34,7 +31,6 @@
 %      N1 is N0 + 1,
 %      collect_rows(TR, tr(N1)/td(text), Next_row).
 %
-% Need clause for termination.
 
 % Predicate collect_rows/2 accepts 2 arguments - a document previously
 % loaded into memory, and an Xpath expression that leads to a table
@@ -96,6 +92,13 @@ collect_rows(help) :-
     starts at the first row and extracts all rows after it. You must know the precise
     Xpath expression for the part just before the table row.  The Xpath should not
     contain any reference to tr or td.").
+
+save_data(File) :-
+   setup_call_cleanup(
+       open(File, write, Out),
+       forall(row(C1,C2,C3,C4,C5,C6),
+              csv_write_stream(Out, [row(C1,C2,C3,C4,C5,C6)], [])),
+       close(Out)).
 
 %Not complete
 /*
