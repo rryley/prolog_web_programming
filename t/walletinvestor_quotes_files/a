@@ -1,0 +1,31 @@
+
+/* Cointraffic.io */
+
+(function () {
+var ct_load = function(){
+var ct_script = document.createElement('script');
+ct_script.type = "text/javascript";
+
+var rn = Math.random()*1000000000000;
+
+ct_script.src = "//apps3.cointraffic.io/bnr/?wkey=zVvpDL&rn=" + rn;
+document.getElementsByTagName('head')[0].appendChild(ct_script);
+
+var ct2_script = document.createElement('script');
+ct2_script.type = "text/javascript";
+ct2_script.src = "//ads.creative-serving.com/pixel?id=3143681&type=js";
+document.getElementsByTagName('head')[0].appendChild(ct2_script);
+
+var ct3_script = document.createElement('script');
+ct3_script.type = "text/javascript";
+ct3_script.src = "//ads.creative-serving.com/pixel?id=3144367&type=js";
+document.getElementsByTagName('head')[0].appendChild(ct3_script);
+
+};
+if (window.addEventListener) {
+window.addEventListener('load', ct_load, false);
+} else {
+window.attachEvent('onload', ct_load)
+}
+}());
+        
