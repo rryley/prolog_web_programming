@@ -14,9 +14,22 @@
 %  equal, the predicate terminates. If not, the state variable is
 %  incremented by 1 and the next row is returned.
 
-:- discontiguous get_local_file/1.
+% :- discontiguous get_local_file/1.
+
 :- use_module(library(csv)).
 :- include('scraper.pl').
+
+
+/* To get system time.  Will need to concat fields in date structure into atom for
+ *  use as portion of file name.
+ get_time(X), stamp_date_time(X,Y,local), date_time_value(date,Y,Z).
+X = 1515146301.284536,
+Y = date(2018, 1, 5, 4, 58, 21.284535884857178, 18000, 'Eastern Standard Time', false),
+Z = date(2018, 1, 5).
+
+*/
+
+
 
 % Read table into memory starting with last row; the tr(index(last))
 % arguments will jump to the last element without needing to know a
