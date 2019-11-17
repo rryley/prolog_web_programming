@@ -14,7 +14,7 @@ building a site crawler that verifies outbound links, and reports which ones are
 build upon the crawler developed in part 2 and incorporate advanced prolog features such as threads,
 session managment, error handling, and manipulation of binary file types.
 
-
+** IN PROGRESS **
 
 
 
